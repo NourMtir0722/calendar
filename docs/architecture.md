@@ -106,8 +106,12 @@ Two suites, because they need genuinely different runtimes.
 
 **`lib`** runs in Node and covers the pure functions: local-time day keys and the month grid, and
 the backup format from both ends — that a journal survives the round trip with its bytes intact,
-that a file which is not a backup is refused in words rather than a parser error, and that a day
-which cannot be trusted is stepped over while the rest are kept.
+that a file which is not a backup is refused in words rather than a parser error, that a day which
+cannot be trusted is stepped over while the rest are kept, and that a truncated file still gives
+back everything written before the cut. Two of them are about the shape rather than the contents:
+that the file really is one JSON object per line, and that days are handed over one at a time
+instead of collected — which is the property that keeps a restore off the memory ceiling, and the
+kind of thing a refactor drops silently.
 
 **`ui`** renders the screens into jsdom, against a microphone that can be told to work or to refuse
 (`src/test/audio.ts`). It covers recording a day and finding it on the device, a take that captured
@@ -165,7 +169,10 @@ taints would announce itself.
   Screen, and Safari's seven-day rule are the reasons the backup exists, and none of them can be
   provoked in a test. That the one defence against them cannot itself be tested end to end is worth
   saying out loud.
-- **A backup at real size.** The round trip is tested on a handful of clips. Whether a couple of
-  hundred megabytes of base64 survives being built, downloaded, and read back on a phone with less
-  memory than a laptop is not something jsdom or a 1.2-second take can answer.
+- **A backup at real size, on a real phone.** A 156MB backup of 300 days was measured once by hand
+  — the streaming read peaks at +69MB of RSS against +296MB for the whole-document read it
+  replaced — but that was Node on a laptop, and it is not in the suite: a memory benchmark in CI
+  measures the runner more than the code. Whether a phone with a few hundred megabytes of heap
+  budget holds up under a real restore is still unanswered, and it is the one number that would
+  settle it.
 

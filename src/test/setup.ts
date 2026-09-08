@@ -106,6 +106,31 @@ beforeEach(async () => {
    */
   vi.stubGlobal('Blob', NodeBlob);
   vi.stubGlobal('AudioContext', StubAudioContext);
+  /**
+   * jsdom's `File` has no `stream()`, though every browser's does — `File`
+   * extends `Blob` there, and `Blob.prototype.stream` is how a restore reads a
+   * backup a line at a time instead of pulling the whole journal into memory.
+   * Without this the one path that must not run out of memory is the one path
+   * no test can run. Delivered in chunks rather than one piece, so the line
+   * buffer is exercised rather than stepped over.
+   */
+  if (!('stream' in File.prototype)) {
+    Object.defineProperty(File.prototype, 'stream', {
+      configurable: true,
+      value(this: File) {
+        const bytes = this.arrayBuffer();
+        return new ReadableStream<Uint8Array>({
+          async start(controller) {
+            const all = new Uint8Array(await bytes);
+            for (let i = 0; i < all.length; i += 64 * 1024) {
+              controller.enqueue(all.subarray(i, i + 64 * 1024));
+            }
+            controller.close();
+          },
+        });
+      },
+    });
+  }
   // jsdom has no canvas and says so, loudly, once per element. Answering with
   // the `null` it would have returned keeps the branch identical and the output
   // readable: the plate and the meter both leave their loops on a null context.

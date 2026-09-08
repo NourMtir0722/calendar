@@ -133,11 +133,12 @@ ever had it.
 So the app says that once, when the first recording is made, and gives you two answers rather than a
 warning:
 
-- **BACK UP** writes every recording into one file. Plain JSON with the audio inside it, so it needs
-  no dependency to read, no format only this app understands, and nothing of mine to still exist in
-  five years. Keep it wherever you keep things you would not want to lose. **RESTORE** reads it back,
-  and leaves any day already on the device alone — an old backup landing on a calendar that has
-  moved on must not take this morning with it.
+- **BACK UP** writes every recording into one file: plain JSON, one day per line, with the audio
+  inside it. No dependency to read it, no format only this app understands, and nothing of mine that
+  has to still exist in five years. Keep it wherever you keep things you would not want to lose.
+  **RESTORE** reads it back a line at a time, so a year of recordings never has to fit in memory at
+  once; it leaves any day already on the device alone, because an old backup landing on a calendar
+  that has moved on must not take this morning with it.
 - **INSTALL** adds the calendar to the home screen. An installed web app is exempt from Safari's
   seven-day rule outright, which is the only dependable defence against it.
 

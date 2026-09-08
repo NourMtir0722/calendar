@@ -91,12 +91,14 @@ test('the journal can be saved as a file, which the policy has to allow', async 
 
   expect(saved.suggestedFilename()).toMatch(/^voice-calendar-\d{4}-\d{2}-\d{2}\.json$/);
   const path = await saved.path();
-  const parsed = JSON.parse(await readFile(path, 'utf8')) as { format: string; days: { audio: string }[] };
-  expect(parsed.format).toBe('voice-calendar-backup');
-  expect(parsed.days).toHaveLength(1);
+  // One object per line: the header, then a day. Read off disk rather than out
+  // of the page, so this is the file somebody would actually still have.
+  const lines = (await readFile(path, 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line));
+  expect(lines[0]).toMatchObject({ format: 'voice-calendar-backup', version: 2 });
+  expect(lines).toHaveLength(2);
   // The audio really is in the file: a backup that only names the recordings
   // would be worth nothing on the device that has lost them.
-  expect(parsed.days[0].audio.length).toBeGreaterThan(0);
+  expect((lines[1] as { audio: string }).audio.length).toBeGreaterThan(0);
 
   expect(complaints).toEqual([]);
 });

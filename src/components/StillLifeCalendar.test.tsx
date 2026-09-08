@@ -217,11 +217,15 @@ describe('the backup, which is the only way back', () => {
     await waitFor(() => expect(saved).toHaveLength(1));
 
     expect(saved[0].name).toMatch(/^voice-calendar-\d{4}-\d{2}-\d{2}\.json$/);
-    const parsed = JSON.parse(await saved[0].text) as { days: { date: string; audio: string }[] };
-    expect(parsed.days.map(day => day.date)).toEqual(['2026-09-02', '2026-09-08']);
+    // One object per line: a header, then a day each, which is what lets a
+    // restore read it back a clip at a time.
+    const lines = (await saved[0].text).split('\n').filter(Boolean).map(l => JSON.parse(l));
+    expect(lines[0]).toMatchObject({ format: 'voice-calendar-backup' });
+    const days = lines.slice(1) as { date: string; audio: string }[];
+    expect(days.map(day => day.date)).toEqual(['2026-09-02', '2026-09-08']);
     // The audio is in the file, not a reference to something that has to still
     // exist for the file to be worth anything.
-    expect(parsed.days.every(day => day.audio.length > 0)).toBe(true);
+    expect(days.every(day => day.audio.length > 0)).toBe(true);
   });
 
   it('cannot be asked for by a calendar with nothing in it', async () => {

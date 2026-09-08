@@ -310,21 +310,32 @@ export function StillLifeCalendar() {
   const importBackup = useCallback(async (file: File) => {
     setWorking('RESTORING…');
     try {
-      const restored = await readBackup(file);
       const existing = await markedDates();
       let added = 0;
-      for (const entry of restored) {
-        if (existing.has(entry.date)) continue;
+      let already = 0;
+      // Each day is written and let go as it arrives, so a restore never holds
+      // more of the journal than the clip it is working on. The file is the
+      // only copy somebody has left at this point; running out of memory
+      // halfway through it is the one failure this path cannot have.
+      const { skipped } = await readBackup(file, async entry => {
+        if (existing.has(entry.date)) {
+          already++;
+          return;
+        }
         await putEntry(entry);
+        existing.add(entry.date);
         added++;
-      }
+        setWorking(`RESTORING ${added}…`);
+      });
+
       setMarked(await markedDates());
       setEntry(await getEntry(selected));
-      const skipped = restored.length - added;
+      const damaged = skipped ? ` ${skipped} could not be read.` : '';
+      const untouched = already ? ` ${already} already on this device ${already === 1 ? 'was' : 'were'} left alone.` : '';
       setNotice(
         added
-          ? `Restored ${added} ${added === 1 ? 'day' : 'days'}.${skipped ? ` ${skipped} already on this device ${skipped === 1 ? 'was' : 'were'} left alone.` : ''}`
-          : 'Every day in that backup is already on this device.',
+          ? `Restored ${added} ${added === 1 ? 'day' : 'days'}.${untouched}${damaged}`
+          : `Every day in that backup is already on this device.${damaged}`,
       );
     } catch (cause) {
       setNotice(cause instanceof NotABackup ? cause.message : 'That backup could not be read.');

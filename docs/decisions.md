@@ -30,10 +30,28 @@ The long version of why the app is built the way it is. Back to the [README](../
   somebody has to hand, years from now, with this app gone. A journal you can only recover with the
   software that wrote it is not much of a backup. The cost is base64's extra third, paid on a file
   that is written once in a while and read almost never.
-- **The backup is built as `Blob` parts rather than one joined string.** A year of daily recordings
-  is a couple of hundred megabytes once base64 has added its share, and holding that as a single
-  JavaScript string to hand to `Blob` is the one step likely to fail on a phone. Each part is one
-  clip, which is as small as this can be broken without inventing a format.
+- **One JSON object per line, not one JSON document.** The header is the first line and every line
+  after it is a day, which is what lets both halves work a clip at a time: the file is built as
+  `Blob` parts and read through a stream, and neither side ever holds more than one recording.
+
+  The first version got this half right and half wrong. It was *written* incrementally, precisely
+  because holding a year of base64 as one JavaScript string is the step most likely to fail on a
+  phone — and then *read* with `JSON.parse(await file.text())`, which is that same step, on the side
+  where it matters more. A restore is what somebody runs when the file is the only copy they have
+  left, so it is the one path that must not run out of memory.
+
+  Measured on a 156MB backup of 300 days: the streaming read peaks at **+69MB** of RSS, the
+  whole-document read at **+296MB** — roughly twice the size of the file, which is the number that
+  ends a restore on a phone.
+- **The days are handed to a callback rather than returned as an array.** The same reason, one layer
+  up: returning `Entry[]` would put every decoded recording in memory at once, undoing the streaming
+  parse immediately above it. The caller writes each day and lets it go, so the high-water mark is a
+  single clip whatever the file weighs.
+- **A line that cannot be read is skipped, and the days around it are still restored.** The
+  whole-document version could not do this: one bad byte failed all of it, including every day
+  written before the damage. A backup truncated by a failed copy — exactly the file somebody
+  restores from — now gives back everything up to the cut, and says how many lines it could not
+  read rather than reporting a silent success.
 - **Every field in a restored backup is checked rather than trusted.** This file has been in
   somebody's downloads for a year: it may have been edited, truncated by a failed copy, or picked
   from the wrong folder. The failure that matters is the quiet one, where a malformed day lands in
