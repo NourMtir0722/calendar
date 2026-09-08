@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nawwara-calendar",
+  "compatibility_date": "2026-09-01",
+  /**
+   * No `main`, and that is the whole point: this deploys static files and
+   * nothing else. There is no server, no storage and no endpoint that accepts
+   * anything, because recordings never leave the browser that made them.
+   *
+   * `single-page-application` so a refresh on any path lands on index.html
+   * rather than a 404.
+   */
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "env": {
+    "production": {
+      "assets": {
+        "directory": "./dist",
+        "not_found_handling": "single-page-application"
+      },
+      // Wrangler provisions the DNS record and certificate for this hostname.
+      "routes": [{ "pattern": "calendar.nawwara.studio", "custom_domain": true }]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  /* The browser suite. Playwright's runner supplies its own DOM through the
+     page rather than through the type system, so this needs Node types and
+     nothing from `vite/client`: nothing here imports the app, it drives it. */
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"],
+  "exclude": []
+}

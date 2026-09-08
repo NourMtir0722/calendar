@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.wrangler/
+.DS_Store
+
+# Local secrets.
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+
+*.log
+
+# Playwright's own output: traces, videos and reports for a failed run.
+/test-results/
+/playwright-report/
+/blob-report/

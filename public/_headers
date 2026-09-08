@@ -1,0 +1,49 @@
+# Every recording this person has ever made is in this origin's IndexedDB, in
+# reach of anything that manages to run script here. That raises what an
+# injection would cost from "defacement" to the whole journal, so the policy is
+# worth the few lines it takes.
+#
+# 'unsafe-inline' is needed for styles and not for scripts: the month's palette
+# is set as style attributes on the app root, while the build emits no inline
+# script at all. connect-src is 'none' because there is nothing to connect to:
+# recordings never leave this browser, so a page that tries to send one
+# anywhere is a page that has been tampered with.
+#
+# Permissions-Policy names the microphone rather than leaving it to the default,
+# because the microphone is the one capability this app genuinely asks for: an
+# app that takes voice recordings should be the thing that says out loud which
+# frames may take them, and every other powerful feature is denied outright
+# rather than left available to a frame that talks its way in.
+#
+# These reach every response, since static assets are all this origin serves.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: microphone=(self), camera=(), geolocation=(), payment=(), usb=(), midi=(), display-capture=(), browsing-topics=()
+
+# Bundle filenames carry a content hash, so they can never go stale: a change
+# produces a different name. Without this every open revalidates them, which on
+# a phone is round trips before anything paints.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Not content-hashed, so cached for a week rather than forever: replacing a
+# plate or an icon should reach people without renaming the file.
+/plates/*
+  Cache-Control: public, max-age=604800
+/icons/*
+  Cache-Control: public, max-age=604800
+
+# The Inter release is in the filename, so these are as immutable as the
+# hashed bundles: a new cut of the typeface is a new name, never a new body at
+# the same one. Worth the long life — the face is on the critical path, and a
+# weekly revalidation is a round trip before the display type settles.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# index.html is deliberately left alone. It is what points at every hashed
+# bundle, so it must revalidate or an update never arrives.

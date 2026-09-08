@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # The app has three runtime dependencies and a long tail of build tooling, so
+  # the useful cadence is weekly and grouped: a pull request per package would
+  # be noise on a repository this size, and noise is how a real advisory gets
+  # scrolled past.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      runtime:
+        patterns: ['react', 'react-dom', 'tailwindcss', '@tailwindcss/*']
+      tooling:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

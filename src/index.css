@@ -1,0 +1,805 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------
+   Inter, served from this origin rather than imported from Google.
+
+   It used to arrive through `@import url(fonts.googleapis.com/...)` at the
+   top of this file, which is the slowest way to load a typeface: an @import
+   is only discovered once this stylesheet has itself been fetched and parsed,
+   so the browser learned about the font on the third round trip and about the
+   font file on the fourth — all of it blocking, on a page whose display type
+   is most of the design. It also told Google the IP of everyone who opened a
+   private journal, and it was the one thing on the page that the content
+   security policy had to make an exception for.
+
+   One variable file covers 400-800, so the four weights the design uses cost
+   a single request. The subsets keep their unicode-range: `longDate` formats
+   in the reader's own locale, and a Greek or Cyrillic month name should fall
+   through to the system face rather than drag a font it cannot use.
+   ------------------------------------------------------------------- */
+
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-v20-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-v20-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------------------------------------------------------------------
+   The page scales as one printed object. `--u` is a single unit worth 1px
+   at the 1168x1080 design size, clamped by BOTH axes so the plate and the
+   whole calendar always share one viewport. Every dimension below is
+   calc(N * var(--u)). Below ~900px that sheet stops holding, and the media
+   query near the foot of this file re-lays the same DOM as one column.
+
+   Colour comes from the month: --ground/--paper/--accent/--warm are set on
+   the root element from lib/themes.ts. The values here are the INK block's,
+   so the page is never unstyled while React boots.
+   ------------------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+  --u: clamp(0.45px, min(0.0926svh, 0.0856svw), 1px);
+  --ground: #0e0e10;
+  --paper: #f2ead8;
+  --accent: #e8b84b;
+  --warm: #c2703a;
+  background: var(--ground);
+  color: var(--paper);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background: var(--ground);
+  /* The sheet is sized to fit exactly, so nothing scrolls until the
+     one-column layout takes over. */
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ---- the scene ------------------------------------------------------ */
+
+.calendar-scene {
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: calc(24 * var(--u));
+  padding: calc(32 * var(--u)) 0 calc(28 * var(--u));
+  background: var(--ground);
+  color: var(--paper);
+  transition: background-color 520ms ease;
+}
+.calendar-edition {
+  flex: 0 0 calc(720 * var(--u));
+  width: calc(720 * var(--u));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ---- side rails: typography, not a toolbar -------------------------- */
+
+.rail {
+  position: relative;
+  flex: 0 0 calc(200 * var(--u));
+  width: calc(200 * var(--u));
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 calc(18 * var(--u));
+}
+
+/**
+ * The imprint, in the foot of the margin. Absolutely positioned rather than
+ * pushed with margin-top:auto, so the rail's contents keep their existing
+ * block flow and the panels above it can grow without moving it.
+ */
+.rail-signature {
+  position: absolute;
+  right: calc(18 * var(--u));
+  bottom: 0;
+  font-size: calc(10 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgb(from var(--paper) r g b / 55%);
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+.rail-signature:hover {
+  color: var(--accent);
+}
+.rail-right {
+  text-align: right;
+}
+.rail-day {
+  margin: 0 0 calc(4 * var(--u));
+  font-size: calc(11 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.rail-state {
+  margin: 0 0 calc(26 * var(--u));
+  min-height: calc(32 * var(--u));
+  font-size: calc(11 * var(--u));
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgb(from var(--paper) r g b / 62%);
+  overflow-wrap: anywhere;
+}
+.rail-state.is-alert {
+  color: var(--warm);
+  cursor: pointer;
+}
+.rail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(2 * var(--u));
+}
+.rail-right .rail-actions {
+  align-items: flex-end;
+}
+.rail-actions button {
+  display: block;
+  width: 100%;
+  padding: calc(2 * var(--u)) 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-size: calc(34 * var(--u));
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.05em;
+  transition: color 140ms ease;
+}
+.rail-right .rail-actions button {
+  text-align: right;
+}
+.rail-actions button:hover:not(:disabled) {
+  color: var(--accent);
+}
+.rail-actions button:disabled {
+  color: rgb(from var(--paper) r g b / 28%);
+  cursor: not-allowed;
+}
+.rail-actions button.is-live {
+  color: var(--accent);
+}
+.rail a:focus-visible,
+.rail button:focus-visible,
+.rail input:focus-visible {
+  outline: calc(2 * var(--u)) solid var(--accent);
+  outline-offset: calc(3 * var(--u));
+}
+.rail-actions button.rail-small {
+  font-size: calc(12 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  padding: calc(8 * var(--u)) 0;
+}
+.rail-heading {
+  display: block;
+  margin: 0 0 calc(8 * var(--u));
+  font-size: calc(11 * var(--u));
+  font-weight: 700;
+  color: var(--accent);
+}
+.rail-note {
+  margin: calc(14 * var(--u)) 0;
+  font-size: calc(10 * var(--u));
+  line-height: 1.85;
+  color: rgb(from var(--paper) r g b / 60%);
+  overflow-wrap: anywhere;
+}
+
+/* ---- the live take -------------------------------------------------- */
+
+.rail-live {
+  margin-top: calc(24 * var(--u));
+  padding-top: calc(18 * var(--u));
+  border-top: 1px solid rgb(from var(--paper) r g b / 30%);
+  text-align: left;
+}
+.rail-wave {
+  display: block;
+  width: 100%;
+  height: calc(70 * var(--u));
+  margin: calc(10 * var(--u)) 0;
+}
+.rail-counter {
+  margin: calc(10 * var(--u)) 0 calc(16 * var(--u));
+  font-size: calc(44 * var(--u));
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+  color: var(--accent);
+}
+/* The one prompt this app makes on its own behalf, so it is marked as an
+   interruption rather than blending into the controls around it. */
+.rail-keep {
+  border-top-color: var(--accent);
+}
+.rail-keep .rail-heading {
+  color: var(--accent);
+}
+
+/* ---- cover plate ---------------------------------------------------- */
+
+.cover-panel {
+  position: relative;
+  flex: 0 0 auto;
+  height: calc(470 * var(--u));
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #121213;
+}
+.plate-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.plate-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+.plate-sample {
+  display: none;
+}
+.plate-ascii,
+.plate-boxes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.plate-captions {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #fff;
+  font: calc(9 * var(--u)) / 1 ui-monospace, 'Courier New', monospace;
+}
+.plate-captions span {
+  position: absolute;
+  transform: translateY(calc(-100% - 4px));
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 55%);
+}
+/* Covers the swap between two paintings, then draws the scanner back down. */
+.plate-wipe {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: var(--ground);
+  pointer-events: none;
+  animation: plate-develop 560ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.plate-wipe::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 calc(12 * var(--u)) var(--accent);
+  animation: plate-sweep 560ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes plate-develop {
+  from { opacity: 1; }
+  70%  { opacity: 0; }
+  to   { opacity: 0; }
+}
+@keyframes plate-sweep {
+  from { top: 0; opacity: 0.9; }
+  to   { top: 100%; opacity: 0; }
+}
+.cover-topline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(24 * var(--u));
+  padding: calc(16 * var(--u)) calc(20 * var(--u));
+  font-size: calc(11 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f2ead8;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 80%);
+  pointer-events: none;
+}
+.cover-topline > span:first-child {
+  color: var(--accent);
+}
+.cover-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- month panel ---------------------------------------------------- */
+
+.month-panel {
+  margin-top: calc(18 * var(--u));
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--paper);
+  transition: background-color 520ms ease;
+  padding: calc(22 * var(--u)) calc(26 * var(--u)) calc(18 * var(--u)) calc(20 * var(--u));
+  display: grid;
+  grid-template-columns: calc(109 * var(--u)) 1fr;
+  gap: calc(16 * var(--u));
+}
+.month-spine {
+  border-right: 1px solid rgb(from var(--ground) r g b / 30%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.month-spine h2 {
+  writing-mode: vertical-rl;
+  margin: 0;
+  font-size: calc(85 * var(--u));
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: calc(-6 * var(--u));
+  color: var(--ground);
+  transition: color 520ms ease;
+}
+.spine-year {
+  display: flex;
+  flex-direction: column;
+  padding: calc(12 * var(--u)) 0 calc(6 * var(--u)) calc(12 * var(--u));
+  font-size: calc(78 * var(--u));
+  font-weight: 800;
+  line-height: 0.77;
+  letter-spacing: calc(-6 * var(--u));
+  color: var(--ground);
+  transition: color 520ms ease;
+}
+.month-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.month-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: calc(14 * var(--u));
+  font-size: calc(10 * var(--u));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ground);
+}
+.month-step {
+  padding: calc(6 * var(--u)) calc(2 * var(--u));
+  background: transparent;
+  border: 0;
+  font: inherit;
+  transition: color 140ms ease;
+}
+.month-step:hover {
+  color: var(--warm);
+}
+.month-step:focus-visible {
+  outline: 1px solid var(--ground);
+  outline-offset: calc(2 * var(--u));
+}
+.month-count {
+  color: rgb(from var(--ground) r g b / 55%);
+}
+
+.weekday-row,
+.date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: calc(5 * var(--u));
+}
+.weekday-row {
+  flex: 0 0 auto;
+  margin-bottom: calc(10 * var(--u));
+}
+/* Six equal rows fill whatever height is left, and each circle is sized by
+   its row rather than its column. That is what lets the plate and the whole
+   calendar share one viewport. */
+.date-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+}
+.weekday-badge {
+  width: calc(30 * var(--u));
+  height: calc(30 * var(--u));
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ground);
+  color: var(--paper);
+  font-size: calc(8 * var(--u));
+  font-weight: 700;
+  transition: background-color 520ms ease, color 520ms ease;
+}
+.weekday-badge abbr {
+  text-decoration: none;
+}
+
+/* A filled circle holds a voice; an outline is still empty, so the month
+   visibly fills in. Weekends take the warm tone. */
+.date-circle {
+  position: relative;
+  height: 100%;
+  width: auto;
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgb(from var(--ground) r g b / 32%);
+  background: transparent;
+  color: var(--ground);
+  font-size: calc(31 * var(--u));
+  font-weight: 500;
+  letter-spacing: calc(-2 * var(--u));
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.date-circle:hover:not(:disabled) {
+  border-color: var(--ground);
+}
+.date-circle:disabled {
+  cursor: default;
+}
+.date-circle.is-filled {
+  background: var(--ground);
+  border-color: var(--ground);
+  color: var(--paper);
+}
+.date-circle.is-filled.is-weekend {
+  background: var(--warm);
+  border-color: var(--warm);
+}
+/* Sealed: it exists but its date has not arrived. */
+.date-circle.is-sealed {
+  background: transparent;
+  border-color: var(--warm);
+  border-style: dashed;
+  color: rgb(from var(--ground) r g b / 55%);
+}
+.date-circle.is-today::after {
+  content: '';
+  position: absolute;
+  bottom: 11%;
+  width: calc(5 * var(--u));
+  height: calc(5 * var(--u));
+  border-radius: 50%;
+  background: var(--warm);
+}
+.date-circle.is-filled.is-today::after {
+  background: var(--accent);
+}
+.date-circle.is-selected,
+.date-circle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 calc(3 * var(--u)) var(--paper), 0 0 0 calc(6 * var(--u)) var(--accent);
+}
+
+/* ---------------------------------------------------------------------
+   The sheet cannot hold below ~900px: 1168 units would need --u under its
+   0.45px floor, so the right margin was clipped away by body's overflow and
+   the type fell to about 5px. The same short screens fail on height.
+
+   Here the identical DOM is re-laid as one column that scrolls: the plate and
+   its month first, then the two margins as full-width panels beneath. --u
+   becomes a true pixel, so every rule above lands at the size it was drawn
+   for, and only the dimensions that assumed a 720-unit page are restated.
+   ------------------------------------------------------------------- */
+
+@media (max-width: 900px), (max-height: 520px) {
+  :root {
+    --u: 1px;
+  }
+
+  /* This is the one layout that is allowed to scroll. */
+  html,
+  body,
+  #root {
+    height: auto;
+    min-height: 100%;
+  }
+  body {
+    overflow: visible;
+  }
+
+  .calendar-scene {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+    flex-direction: column;
+    gap: 18px;
+    padding: 12px 16px 24px;
+  }
+  /* Holds the column to a readable measure on a tablet or a short desktop. */
+  .calendar-edition,
+  .rail {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 620px;
+    margin-inline: auto;
+  }
+  .calendar-edition {
+    order: -1;
+  }
+
+  /* ---- margins, unpinned from their rails ---------------------------- */
+
+  .rail {
+    min-height: 0;
+    overflow: visible;
+    padding: 0;
+  }
+  .rail-right {
+    border-top: 1px solid rgb(from var(--paper) r g b / 22%);
+    padding-top: 20px;
+  }
+  .rail-right,
+  .rail-right .rail-actions,
+  .rail-right .rail-actions button {
+    text-align: left;
+    align-items: flex-start;
+  }
+  .rail-signature {
+    position: static;
+    display: block;
+    margin-top: 22px;
+    text-align: right;
+  }
+  .rail-day,
+  .rail-state {
+    font-size: 12px;
+  }
+  .rail-state {
+    min-height: 0;
+    margin-bottom: 14px;
+  }
+  /* The verbs read as a row of headlines; a stacked list would run off the page. */
+  .rail-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 22px;
+  }
+  .rail-actions button {
+    width: auto;
+    padding: 6px 0;
+    font-size: 28px;
+  }
+  .rail-actions button.rail-small {
+    padding: 12px 0;
+  }
+  .rail-wave {
+    height: 54px;
+  }
+  .rail-counter {
+    font-size: 38px;
+  }
+  .rail-note {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  /* ---- plate --------------------------------------------------------- */
+
+  /* Two lines of running head would cover the painting on a 320px phone. */
+  .cover-topline {
+    gap: 12px;
+    padding: 12px 14px;
+    font-size: 10px;
+  }
+  .cover-topline > span:first-child {
+    white-space: nowrap;
+  }
+  /* Held on its own ratio so the ASCII cells stay square as it narrows. */
+  .cover-panel {
+    height: auto;
+    aspect-ratio: 720 / 470;
+    max-height: 34svh;
+  }
+
+  /* ---- month --------------------------------------------------------- */
+
+  .month-panel {
+    display: block;
+    margin-top: 10px;
+    padding: 14px 12px 16px;
+  }
+  /* The vertical spine would eat a quarter of a phone, so it lies down. */
+  .month-spine {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    border-right: 0;
+    border-bottom: 1px solid rgb(from var(--ground) r g b / 25%);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+  .month-spine h2 {
+    writing-mode: horizontal-tb;
+    font-size: clamp(30px, 9vw, 52px);
+    letter-spacing: -0.04em;
+  }
+  .spine-year {
+    flex-direction: row;
+    padding: 0;
+    font-size: clamp(30px, 9vw, 52px);
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .month-topline {
+    margin-bottom: 12px;
+  }
+  .month-step {
+    padding: 10px 4px;
+  }
+
+  .weekday-row,
+  .date-grid {
+    gap: 4px;
+  }
+  .weekday-badge {
+    width: clamp(24px, 6vw, 40px);
+    height: clamp(24px, 6vw, 40px);
+    font-size: clamp(8px, 1.6vw, 12px);
+  }
+  /* Each day is sized by its column now, not by a row height that the
+     scrolling column no longer fixes. */
+  .date-grid {
+    flex: 0 0 auto;
+    grid-template-rows: repeat(6, auto);
+  }
+  .date-circle {
+    width: 100%;
+    height: auto;
+    font-size: clamp(15px, 4.6vw, 44px);
+    letter-spacing: -0.03em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate-wipe,
+  .plate-wipe::after {
+    animation-duration: 1ms;
+  }
+  .calendar-scene,
+  .month-panel,
+  .month-spine h2,
+  .spine-year,
+  .weekday-badge {
+    transition: none;
+  }
+}
+
+/* ---- the crash screen ----------------------------------------------- */
+
+/*
+  Sized in absolute units rather than in `--u`. Everything else on this page
+  is measured against the sheet, and the sheet is what has just failed to
+  render — so the one screen whose job is to survive that cannot depend on a
+  scale the failure may have taken with it.
+*/
+.crash {
+  height: 100svh;
+  overflow-y: auto;
+  padding: clamp(24px, 6vw, 72px);
+  max-width: 62ch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.crash-heading {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--warm);
+}
+.crash-title {
+  margin: 0 0 20px;
+  font-size: clamp(28px, 5vw, 46px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+.crash-body {
+  margin: 0 0 28px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: rgb(from var(--paper) r g b / 78%);
+}
+.crash-body strong {
+  color: var(--paper);
+}
+.crash-actions button {
+  padding: 10px 0;
+  background: transparent;
+  border: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  transition: color 140ms ease;
+}
+.crash-actions button:hover {
+  color: var(--accent);
+}
+.crash-note {
+  margin: 24px 0 8px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: rgb(from var(--paper) r g b / 55%);
+}
+.crash-note a {
+  color: var(--accent);
+}
+.crash-detail {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 30svh;
+  overflow: auto;
+  border: 1px solid rgb(from var(--paper) r g b / 22%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: rgb(from var(--paper) r g b / 72%);
+}

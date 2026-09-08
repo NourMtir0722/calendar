@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to a branch makes the first run pointless, so it is cancelled
+# rather than left to finish and report on code nobody has any more.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `ci` rather than `install`: the lockfile is what the tests were written
+      # against, and a resolution that quietly differs from it is the failure
+      # this job exists to catch.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # The build runs `tsc -b` as its first half, so type errors are caught
+      # here and never only at deploy time.
+      - name: Build
+        run: npm run build
+
+      # Both suites: the pure functions in Node, the screens in jsdom.
+      - name: Test
+        run: npm test
+
+  # Separate from `check`, because it is the slow half: it downloads a browser,
+  # builds the app, and serves it the way it is deployed. Keeping it apart means
+  # a type error is reported in seconds rather than after a browser download.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Only Chromium, and only its dependencies. The suite is a smoke test of
+      # the things jsdom cannot do — canvas, audio, layout, a real download
+      # under a real CSP — rather than a compatibility matrix.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The config builds the app and serves it itself, so the app is served the
+      # way it is in production: public/_headers on every asset.
+      - name: Browser smoke test
+        run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
