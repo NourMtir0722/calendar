@@ -68,15 +68,6 @@ export function dayNumber(key: DateKey): number {
   return Number(key.slice(8, 10));
 }
 
-export function longDate(key: DateKey): string {
-  return fromKey(key).toLocaleDateString(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
 export function formatClock(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;

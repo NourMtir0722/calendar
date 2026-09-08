@@ -13,9 +13,10 @@
    security policy had to make an exception for.
 
    One variable file covers 400-800, so the four weights the design uses cost
-   a single request. The subsets keep their unicode-range: `longDate` formats
-   in the reader's own locale, and a Greek or Cyrillic month name should fall
-   through to the system face rather than drag a font it cannot use.
+   a single request. The subsets keep their unicode-range: every date and label
+   the app draws is its own English constant, but an uploaded file's name is
+   shown as the day's title and can carry anything, so a name outside latin-ext
+   should fall through to the system face rather than drag a font it cannot use.
    ------------------------------------------------------------------- */
 
 /* latin */
